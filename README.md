@@ -65,8 +65,10 @@ If you have already used this Port then kindly go to the **main.go** program and
 
 	**Tab2---> ws://localhost:8888/wschat/broadcast?sender=user2** (click on Connect and verify the connection is succesfull or not)
 
-	**Tab2---> ws://localhost:8888/wschat/broadcast?sender=user3** (click on Connect and verify the connection is succesfull or not)
+	**Tab3---> ws://localhost:8888/wschat/broadcast?sender=user3** (click on Connect and verify the connection is succesfull or not)
 
+	note: sometimes after connection it will take extra little time to listen to all connected clients.
+	
 4. After connecting all the users and providing the message for first user as mentioned on previous steps now click on send for first user on Tab1.
 5. Now the all three users will be able to see the text message send by each other on response.
 
