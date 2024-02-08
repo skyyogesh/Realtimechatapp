@@ -14,7 +14,6 @@ import (
 )
 
 type Message struct {
-	Sender   string `json:"sender"`
 	Receiver string `json:"receiver"`
 	Text     string `json:"text"`
 }
@@ -22,7 +21,7 @@ type Message struct {
 func TestPrivateChat(t *testing.T) {
 	router := gin.Default()
 
-	router.GET("/wschat", controller.PrivateChat)
+	router.GET("/wschat/private", controller.PrivateChat)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
@@ -40,9 +39,9 @@ func TestPrivateChat(t *testing.T) {
 	defer conn3.Close()
 
 	// create a JSON-encoded message for conn1 to send it to conn2
-	message1 := Message{Sender: "user1", Receiver: "user2", Text: "This is private chat test 1"}
+	message1 := Message{Receiver: "user2", Text: "This is private chat test 1"}
 	// create a JSON-encoded message for conn1 to send it to conn3
-	message2 := Message{Sender: "user1", Receiver: "user3", Text: "This is private chat test 2"}
+	message2 := Message{Receiver: "user3", Text: "This is private chat test 2"}
 
 	jsonMessage1, err := json.Marshal(message1)
 	assert.NoError(t, err)
@@ -70,27 +69,27 @@ func TestBroadcastChat(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	conn1, err := connectClient("broaduser1", server, "broadcast")
+	broadconn1, err := connectClient("broaduser1", server, "broadcast")
 	assert.NoError(t, err)
-	defer conn1.Close()
+	defer broadconn1.Close()
 
-	conn2, err := connectClient("broaduser2", server, "broadcast")
+	broadconn2, err := connectClient("broaduser2", server, "broadcast")
 	assert.NoError(t, err)
-	defer conn2.Close()
+	defer broadconn2.Close()
 
-	conn3, err := connectClient("broaduser3", server, "broadcast")
+	broadconn3, err := connectClient("broaduser3", server, "broadcast")
 	assert.NoError(t, err)
-	defer conn3.Close()
+	defer broadconn3.Close()
 
 	// Send a JSON-encoded message from conn1 and assert that conn2 & conn3 receives it
-	message := Message{Sender: "broaduser1", Receiver: "broaduser2", Text: "This is broadcast chat test"}
+	message := Message{Receiver: "broaduser2", Text: "This is broadcast chat test"}
 	jsonMessage, err := json.Marshal(message)
 	assert.NoError(t, err)
 
 	// Send a message from conn1 and assert that conn2 receives it
-	sendMessage(conn1, jsonMessage)
-	conn2receivedMessage := receiveMessage(conn2)
-	conn3receivedMessage := receiveMessage(conn3)
+	sendMessage(broadconn1, jsonMessage)
+	conn2receivedMessage := receiveMessage(broadconn2)
+	conn3receivedMessage := receiveMessage(broadconn3)
 	assert.Equal(t, message.Text, conn2receivedMessage)
 	assert.Equal(t, message.Text, conn3receivedMessage)
 
@@ -111,16 +110,16 @@ func receiveMessage(conn *websocket.Conn) string {
 	return string(receivedMessage)
 }
 
-func connectClient(username string, server *httptest.Server, chattype string) (*websocket.Conn, error) {
+func connectClient(sender string, server *httptest.Server, chattype string) (*websocket.Conn, error) {
 	u, _ := url.Parse(server.URL)
 	u.Scheme = "ws"
 	if chattype == "private" {
-		u.Path = "/wschat"
-		query := url.Values{"username": {username}}
-		u.RawQuery = query.Encode()
+		u.Path = "/wschat/private"
 	} else {
 		u.Path = "/wschat/broadcast"
 	}
+	query := url.Values{"sender": {sender}}
+	u.RawQuery = query.Encode()
 
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(u.String(), nil)

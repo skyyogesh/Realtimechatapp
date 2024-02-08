@@ -17,43 +17,48 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	conn     *websocket.Conn
-	username string
-	send     chan []byte
+	conn        *websocket.Conn
+	sender      string
+	sendMessage chan Message
 }
 
 type Message struct {
-	Sender   string `json:"sender"`
 	Receiver string `json:"receiver"`
 	Text     string `json:"text"`
 }
 
 var clientsMutex sync.Mutex
+var wg sync.WaitGroup
 var privateclients = make(map[string]*Client)
 var broadcastclients = make(map[*Client]bool)
-var broadcast = make(chan Message)
+var broadcastMessage = make(chan Message)
+
+const private string = "private"
+const broadcast string = "broadcast"
 
 func PrivateChat(c *gin.Context) {
-	MessageHandler(c, "private")
+	MessageHandler(c, private)
 }
 
 func Broadcast(c *gin.Context) {
-	MessageHandler(c, "broadcast")
+	MessageHandler(c, broadcast)
 }
 
 func MessageHandler(c *gin.Context, chattype string) {
-	var wg sync.WaitGroup
 	client := handleWsChatConnection(c)
+	if client == nil {
+		fmt.Println("Invalid URL:", c.Request.URL)
+		return
+	}
 
-	if chattype == "private" {
-		// Get username from query parameter
-		client.username = c.Query("username")
-		if client.username == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Username is required"})
+	if chattype == private {
+		sender := c.Query("sender")
+		if sender == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "sender is required"})
 			return
 		}
 		clientsMutex.Lock()
-		privateclients[client.username] = client
+		privateclients[sender] = client
 		clientsMutex.Unlock()
 	} else {
 		clientsMutex.Lock()
@@ -61,21 +66,27 @@ func MessageHandler(c *gin.Context, chattype string) {
 		clientsMutex.Unlock()
 	}
 
-	wg.Add(2)
+	wg.Add(3)
 	go client.readMessages(chattype, &wg)
 	go client.writeMessages(chattype, &wg)
-	go HandleMessages(chattype, &wg)
+	go handleMessages(chattype, &wg)
 	wg.Wait()
 }
 
 func handleWsChatConnection(c *gin.Context) (client *Client) {
+	sender := c.Query("sender")
+	if sender == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sender is required"})
+		return
+	}
+
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not upgrade connection to WebSocket"})
 		return
 	}
 
-	client = &Client{conn: conn, send: make(chan []byte)}
+	client = &Client{conn: conn, sender: sender, sendMessage: make(chan Message)}
 	return client
 }
 
@@ -96,7 +107,7 @@ func (client *Client) readMessages(chattype string, wg *sync.WaitGroup) {
 			return
 		}
 
-		broadcast <- message
+		broadcastMessage <- message
 	}
 }
 
@@ -105,18 +116,12 @@ func (client *Client) writeMessages(chattype string, wg *sync.WaitGroup) {
 	defer client.closeConnection(chattype)
 
 	for {
-		msg, ok := <-client.send
+		chatmessage, ok := <-client.sendMessage
 		if !ok {
 			fmt.Println("Channel is closed.")
 			break
 		}
 
-		chatmessage := Message{}
-		if err := json.Unmarshal(msg, &chatmessage); err != nil {
-			fmt.Println("Error :", err)
-			return
-		}
-		// Broadcasting only the text message
 		err := client.conn.WriteMessage(websocket.TextMessage, []byte(chatmessage.Text))
 		if err != nil {
 			fmt.Println("Error while writing message to the client")
@@ -127,9 +132,9 @@ func (client *Client) writeMessages(chattype string, wg *sync.WaitGroup) {
 
 func (client *Client) closeConnection(chattype string) {
 	client.conn.Close()
-	if chattype == "private" {
+	if chattype == private {
 		clientsMutex.Lock()
-		delete(privateclients, client.username)
+		delete(privateclients, client.sender)
 		clientsMutex.Unlock()
 	} else {
 		clientsMutex.Lock()
@@ -138,25 +143,20 @@ func (client *Client) closeConnection(chattype string) {
 	}
 }
 
-func HandleMessages(chattype string, wg *sync.WaitGroup) {
+func handleMessages(chattype string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
-		message := <-broadcast
-		recieved_message, err := json.Marshal(message)
-		if err != nil {
-			fmt.Println("Error :", err)
-			return
-		}
+		chatmessage := <-broadcastMessage
 
-		if chattype == "private" {
-			receiver, exists := privateclients[message.Receiver]
+		if chattype == private {
+			receiver, exists := privateclients[chatmessage.Receiver]
 			if exists {
 				select {
-				case receiver.send <- recieved_message:
+				case receiver.sendMessage <- chatmessage:
 				default:
-					close(receiver.send)
+					close(receiver.sendMessage)
 					clientsMutex.Lock()
-					delete(privateclients, receiver.username)
+					delete(privateclients, receiver.sender)
 					clientsMutex.Unlock()
 				}
 			} else {
@@ -166,15 +166,15 @@ func HandleMessages(chattype string, wg *sync.WaitGroup) {
 					userlist = append(userlist, user)
 					clientsMutex.Unlock()
 				}
-				fmt.Printf("Receiver %v is currently Offilne !!\n", message.Receiver)
+				fmt.Printf("Receiver %v is currently Offilne !!\n", chatmessage.Receiver)
 				fmt.Printf("Please connect with available Online user %v\n", userlist)
 			}
 		} else {
 			for client := range broadcastclients {
 				select {
-				case client.send <- recieved_message:
+				case client.sendMessage <- chatmessage:
 				default:
-					close(client.send)
+					close(client.sendMessage)
 					clientsMutex.Lock()
 					delete(broadcastclients, client)
 					clientsMutex.Unlock()
