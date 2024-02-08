@@ -32,6 +32,7 @@ var wg sync.WaitGroup
 var privateclients = make(map[string]*Client)
 var broadcastclients = make(map[*Client]bool)
 var broadcastMessage = make(chan Message)
+var privateMessage = make(chan Message)
 
 const private string = "private"
 const broadcast string = "broadcast"
@@ -107,7 +108,11 @@ func (client *Client) readMessages(chattype string, wg *sync.WaitGroup) {
 			return
 		}
 
-		broadcastMessage <- message
+		if chattype == private {
+			privateMessage <- message
+		} else {
+			broadcastMessage <- message
+		}
 	}
 }
 
@@ -146,9 +151,8 @@ func (client *Client) closeConnection(chattype string) {
 func handleMessages(chattype string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
-		chatmessage := <-broadcastMessage
-
 		if chattype == private {
+			chatmessage := <-privateMessage
 			receiver, exists := privateclients[chatmessage.Receiver]
 			if exists {
 				select {
@@ -170,6 +174,7 @@ func handleMessages(chattype string, wg *sync.WaitGroup) {
 				fmt.Printf("Please connect with available Online user %v\n", userlist)
 			}
 		} else {
+			chatmessage := <-broadcastMessage
 			for client := range broadcastclients {
 				select {
 				case client.sendMessage <- chatmessage:
