@@ -19,8 +19,7 @@ func NewRouter() *gin.Engine {
 		c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
 	})
 
-	router.GET("/wschat/private", controller.PrivateChat)
-	router.GET("/wschat/broadcast", controller.Broadcast)
+	router.GET("/wschat", controller.RealtimeChat)
 
 	return router
 }

@@ -21,20 +21,20 @@ type Message struct {
 func TestPrivateChat(t *testing.T) {
 	router := gin.Default()
 
-	router.GET("/wschat/private", controller.PrivateChat)
+	router.GET("/wschat", controller.RealtimeChat)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	conn1, err := connectClient("user1", server, "private")
+	conn1, err := connectClient("user1", server)
 	assert.NoError(t, err)
 	defer conn1.Close()
 
-	conn2, err := connectClient("user2", server, "private")
+	conn2, err := connectClient("user2", server)
 	assert.NoError(t, err)
 	defer conn2.Close()
 
-	conn3, err := connectClient("user3", server, "private")
+	conn3, err := connectClient("user3", server)
 	assert.NoError(t, err)
 	defer conn3.Close()
 
@@ -64,25 +64,25 @@ func TestPrivateChat(t *testing.T) {
 func TestBroadcastChat(t *testing.T) {
 	router := gin.Default()
 
-	router.GET("/wschat/broadcast", controller.Broadcast)
+	router.GET("/wschat", controller.RealtimeChat)
 
 	server := httptest.NewServer(router)
 	defer server.Close()
 
-	broadconn1, err := connectClient("broaduser1", server, "broadcast")
+	broadconn1, err := connectClient("broaduser1", server)
 	assert.NoError(t, err)
 	defer broadconn1.Close()
 
-	broadconn2, err := connectClient("broaduser2", server, "broadcast")
+	broadconn2, err := connectClient("broaduser2", server)
 	assert.NoError(t, err)
 	defer broadconn2.Close()
 
-	broadconn3, err := connectClient("broaduser3", server, "broadcast")
+	broadconn3, err := connectClient("broaduser3", server)
 	assert.NoError(t, err)
 	defer broadconn3.Close()
 
 	// Send a JSON-encoded message from conn1 and assert that conn2 & conn3 receives it
-	message := Message{Receiver: "broaduser2", Text: "This is broadcast chat test"}
+	message := Message{Text: "This is broadcast chat test"}
 	jsonMessage, err := json.Marshal(message)
 	assert.NoError(t, err)
 
@@ -110,14 +110,10 @@ func receiveMessage(conn *websocket.Conn) string {
 	return string(receivedMessage)
 }
 
-func connectClient(sender string, server *httptest.Server, chattype string) (*websocket.Conn, error) {
+func connectClient(sender string, server *httptest.Server) (*websocket.Conn, error) {
 	u, _ := url.Parse(server.URL)
 	u.Scheme = "ws"
-	if chattype == "private" {
-		u.Path = "/wschat/private"
-	} else {
-		u.Path = "/wschat/broadcast"
-	}
+	u.Path = "/wschat"
 	query := url.Values{"sender": {sender}}
 	u.RawQuery = query.Encode()
 

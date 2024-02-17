@@ -27,7 +27,9 @@ If you have already used this Port then kindly go to the **main.go** program and
 1. Open the postman --> go to New --> choose WebSocket
 2. Now to chat privately use the below URL and open two tab: **(Please verify the port before using the url if you have changed the port on previous steps)**
 
-	**Tab1---> ws://localhost:8888/wschat/private?sender=user1** (click on Connect and verify the connection is succesfull or not)
+	**To Chat Privately we need to mandatorily provide the receiver details with whom we want to chat**
+
+	**Tab1---> ws://localhost:8888/wschat?sender=user1** (click on Connect and verify the connection is succesfull or not)
 
 	message for first user--> Here on **receiver** you have to provide the **user2** name.
 
@@ -36,7 +38,7 @@ If you have already used this Port then kindly go to the **main.go** program and
     	"text": "Hi, how are you!"
 	}**
 
-	**Tab2---> ws://localhost:8888/wschat/private?sender=user2** (click on Connect and verify the connection is succesfull or not)
+	**Tab2---> ws://localhost:8888/wschat?sender=user2** (click on Connect and verify the connection is succesfull or not)
 
 	message for second user--> Here on **receiver** you have to provide the **user1** name.
 
@@ -54,18 +56,19 @@ If you have already used this Port then kindly go to the **main.go** program and
 1. Open the postman --> go to New --> choose WebSocket
 2. Now to boradcast chat use the below URL and open three tab: **(Please verify the port before using the url if you have changed the port already)**
    
-	**Tab1---> ws://localhost:8888/wschat/broadcast?sender=user1** (click on Connect and verify the connection is succesfull or not)
+	**To Broadcast chat we need to provide onlt Text we don't require the receiver details**
+
+	**Tab1---> ws://localhost:8888/wschat?sender=user1** (click on Connect and verify the connection is succesfull or not)
 	
  	message for first user--> Here you don't have to worry about the receiver as it will boradcasting to all.
 	
  	> **{
-   	"receiver": "user2",
     	"text": "Hi, how are you!"
 	}**
 
-	**Tab2---> ws://localhost:8888/wschat/broadcast?sender=user2** (click on Connect and verify the connection is succesfull or not)
+	**Tab2---> ws://localhost:8888/wschat?sender=user2** (click on Connect and verify the connection is succesfull or not)
 
-	**Tab2---> ws://localhost:8888/wschat/broadcast?sender=user3** (click on Connect and verify the connection is succesfull or not)
+	**Tab2---> ws://localhost:8888/wschat?sender=user3** (click on Connect and verify the connection is succesfull or not)
 
 4. After connecting all the users and providing the message for first user as mentioned on previous steps now click on send for first user on Tab1.
 5. Now the all three users will be able to see the text message send by each other on response.
@@ -77,6 +80,8 @@ If you have already used this Port then kindly go to the **main.go** program and
    > **go test -run TestPrivateChat -v**
 3. Run the command to execute second test.
    > **go test -run TestBroadcastChat -v**
+4. Run the command to execute both the test case at one go.
+   > **go test -v**
    
 
    
