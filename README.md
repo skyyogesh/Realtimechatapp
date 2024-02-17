@@ -82,6 +82,8 @@ If you have already used this Port then kindly go to the **main.go** program and
    > **go test -run TestBroadcastChat -v**
 4. Run the command to execute both the test case at one go.
    > **go test -v**
+4. Run the command to execute both the test case at one go.
+   > **go test -v**
    
 
    
